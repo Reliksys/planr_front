@@ -4,20 +4,16 @@ import { useNavigate } from 'react-router-dom';
 export const SignupPage = () => {
   const navigate = useNavigate();
   const [name, setName] = useState('');
-  const [platform, setPlatform] = useState<'tg' | 'vk' | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     const pendingData = sessionStorage.getItem('pendingRegistrationData');
-    const storedPlatform = sessionStorage.getItem('pendingPlatform');
     if (pendingData) {
       const user = JSON.parse(pendingData);
-      // Предзаполняем имя из данных платформы, если есть
       if (user.first_name) setName(user.first_name);
       else if (user.name) setName(user.name);
       else if (user.username) setName(user.username);
-      setPlatform(storedPlatform as 'tg' | 'vk');
     } else {
       navigate('/');
     }
@@ -30,10 +26,8 @@ export const SignupPage = () => {
 
     try {
       const pendingData = sessionStorage.getItem('pendingRegistrationData');
-      const pendingInitData = sessionStorage.getItem('pendingInitData'); // для Telegram может понадобиться
       const storedPlatform = sessionStorage.getItem('pendingPlatform');
 
-      // Шаг 1: регистрация через /api/auth/sign-up
       let socials: any = {};
       if (storedPlatform === 'tg') {
         const tgUser = JSON.parse(pendingData!);
@@ -53,9 +47,9 @@ export const SignupPage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, socials }),
       });
+      
       if (!signupRes.ok) throw new Error('Ошибка регистрации');
 
-      // Шаг 2: повторная авторизация через ту же платформу, чтобы получить токен
       let authUrl = '';
       let body = {};
       if (storedPlatform === 'tg') {
@@ -65,11 +59,13 @@ export const SignupPage = () => {
         authUrl = '/api/auth/vk';
         body = { launchParams: sessionStorage.getItem('pendingInitData') };
       }
+      
       const authRes = await fetch(authUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      
       if (authRes.status === 200) {
         const token = await authRes.text();
         localStorage.setItem('token', token);
